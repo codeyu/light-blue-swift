@@ -36,12 +36,12 @@ class PeripheralViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
 struct PeripheralDetailView: View {
     @StateObject private var viewModel: PeripheralViewModel
     @ObservedObject var bluetoothManager: BluetoothManager
-    @Binding var isPresented: Bool
+    let dismiss: () -> Void
     
-    init(peripheral: CBPeripheral, bluetoothManager: BluetoothManager, isPresented: Binding<Bool>) {
+    init(peripheral: CBPeripheral, bluetoothManager: BluetoothManager, dismiss: @escaping () -> Void) {
         _viewModel = StateObject(wrappedValue: PeripheralViewModel(peripheral: peripheral, advertisementData: bluetoothManager.advertisementData[peripheral.identifier] ?? [:]))
         self.bluetoothManager = bluetoothManager
-        self._isPresented = isPresented
+        self.dismiss = dismiss
     }
     
     var body: some View {
@@ -69,16 +69,14 @@ struct PeripheralDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HStack {
-                        Text("Device Details")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                    }
+                    Text("Device Details")
+                        .font(.headline)
+                        .foregroundColor(.white)
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         bluetoothManager.disconnect(viewModel.peripheral)
-                        isPresented = false
+                        dismiss()
                     }) {
                         HStack {
                             Image(systemName: "chevron.left")
@@ -91,9 +89,6 @@ struct PeripheralDetailView: View {
         }
         .onAppear {
             viewModel.discoverServices()
-        }
-        .onDisappear {
-            bluetoothManager.connectedPeripheral = nil
         }
     }
 }

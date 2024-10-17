@@ -11,43 +11,46 @@ class BluetoothManager: NSObject, ObservableObject {
     @Published var discoveredPeripherals: [(peripheral: CBPeripheral, rssi: NSNumber)] = []
     @Published var connectedPeripheral: CBPeripheral?
     var advertisementData: [UUID: [String: Any]] = [:]
-    
-    private var centralManager: CBCentralManager?
-    private var connectionTimer: Timer?
-    private var connectionCallback: ((Bool) -> Void)?
-    
+    var centralManager: CBCentralManager?
+    var connectionCallback: ((Bool) -> Void)?
+
     override init() {
         super.init()
-        self.centralManager = CBCentralManager(delegate: self, queue: nil)
+        centralManager = CBCentralManager(delegate: self, queue: nil)
     }
-    
+
     func startScanning() {
+        guard centralManager?.state == .poweredOn else { return }
         centralManager?.scanForPeripherals(withServices: nil, options: nil)
     }
-    
+
     func stopScanning() {
         centralManager?.stopScan()
     }
-    
+
     func connect(to peripheral: CBPeripheral, completion: @escaping (Bool) -> Void) {
+        guard centralManager?.state == .poweredOn else {
+            completion(false)
+            return
+        }
+        
         connectionCallback = completion
         centralManager?.connect(peripheral, options: nil)
-        
-        // Set a timer for 10 seconds
-        connectionTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
-            self?.cancelConnection(peripheral)
-            self?.connectionCallback?(false)
-        }
     }
-    
-    func cancelConnection(_ peripheral: CBPeripheral) {
-        centralManager?.cancelPeripheralConnection(peripheral)
-        connectionTimer?.invalidate()
-        connectionTimer = nil
-    }
-    
+
     func disconnect(_ peripheral: CBPeripheral) {
         centralManager?.cancelPeripheralConnection(peripheral)
+    }
+
+    func resetState() {
+        stopScanning()
+        if let connectedPeripheral = connectedPeripheral {
+            disconnect(connectedPeripheral)
+        }
+        discoveredPeripherals.removeAll()
+        connectedPeripheral = nil
+        advertisementData.removeAll()
+        connectionCallback = nil
     }
 }
 
@@ -67,22 +70,25 @@ extension BluetoothManager: CBCentralManagerDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        connectedPeripheral = peripheral
-        connectionTimer?.invalidate()
-        connectionTimer = nil
-        connectionCallback?(true)
-        stopScanning()
+        DispatchQueue.main.async {
+            self.connectedPeripheral = peripheral
+            self.connectionCallback?(true)
+            self.connectionCallback = nil
+        }
     }
     
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        connectionTimer?.invalidate()
-        connectionTimer = nil
-        connectionCallback?(false)
+        DispatchQueue.main.async {
+            self.connectionCallback?(false)
+            self.connectionCallback = nil
+        }
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        if peripheral == connectedPeripheral {
-            connectedPeripheral = nil
+        DispatchQueue.main.async {
+            if peripheral == self.connectedPeripheral {
+                self.connectedPeripheral = nil
+            }
         }
     }
 }

@@ -17,48 +17,51 @@ struct ContentView: View {
     @State private var showingDetailView = false
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                FilterView(searchText: $searchText, hideUnknownDevices: $hideUnknownDevices)
-                    .padding(.horizontal)
-                    .padding(.vertical, 10)
-                    .background(Color(.systemGray6))
-                
-                List {
-                    ForEach(filteredPeripherals, id: \.peripheral.identifier) { (peripheral, rssi) in
-                        PeripheralRowView(peripheral: peripheral, rssi: rssi) {
-                            connectToPeripheral(peripheral)
+        ZStack {
+            NavigationView {
+                VStack(spacing: 0) {
+                    FilterView(searchText: $searchText, hideUnknownDevices: $hideUnknownDevices)
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemGray6))
+                    
+                    List {
+                        ForEach(filteredPeripherals, id: \.peripheral.identifier) { (peripheral, rssi) in
+                            PeripheralRowView(peripheral: peripheral, rssi: rssi) {
+                                connectToPeripheral(peripheral)
+                            }
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        HStack {
+                            Text("LightBlue")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Image(systemName: "swift")
+                                .foregroundColor(.white)
+                        }
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            resetAndStartScanning()
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(.white)
                         }
                     }
                 }
-                .listStyle(PlainListStyle())
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack {
-                        Text("LightBlue")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Image(systemName: "swift")
-                            .foregroundColor(.white)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        bluetoothManager.startScanning()
-                    }) {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(.white)
-                    }
-                }
-            }
-        }
-        .navigationViewStyle(StackNavigationViewStyle())
-        .accentColor(.white)
-        .sheet(isPresented: $showingDetailView) {
-            if let peripheral = selectedPeripheral {
-                PeripheralDetailView(peripheral: peripheral, bluetoothManager: bluetoothManager, isPresented: $showingDetailView)
+            .navigationViewStyle(StackNavigationViewStyle())
+            .accentColor(.white)
+            
+            if showingDetailView, let peripheral = selectedPeripheral {
+                PeripheralDetailView(peripheral: peripheral, bluetoothManager: bluetoothManager, dismiss: dismissDetailView)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(1)
             }
         }
         .alert(isPresented: $isConnecting) {
@@ -67,7 +70,7 @@ struct ContentView: View {
                 message: Text("Attempting to connect to \(selectedPeripheral?.name ?? "device")..."),
                 dismissButton: .cancel {
                     if let peripheral = selectedPeripheral {
-                        bluetoothManager.cancelConnection(peripheral)
+                        bluetoothManager.disconnect(peripheral)
                     }
                 }
             )
@@ -75,6 +78,7 @@ struct ContentView: View {
     }
     
     private func connectToPeripheral(_ peripheral: CBPeripheral) {
+        resetState()
         selectedPeripheral = peripheral
         isConnecting = true
         bluetoothManager.connect(to: peripheral) { success in
@@ -82,8 +86,31 @@ struct ContentView: View {
                 isConnecting = false
                 if success {
                     showingDetailView = true
+                } else {
+                    selectedPeripheral = nil
                 }
             }
+        }
+    }
+    
+    private func resetAndStartScanning() {
+        resetState()
+        bluetoothManager.resetState()
+        bluetoothManager.startScanning()
+    }
+    
+    private func resetState() {
+        selectedPeripheral = nil
+        showingDetailView = false
+        isConnecting = false
+    }
+    
+    private func dismissDetailView() {
+        withAnimation {
+            showingDetailView = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            resetState()
         }
     }
     
