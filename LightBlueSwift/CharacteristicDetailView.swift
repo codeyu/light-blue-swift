@@ -75,71 +75,70 @@ struct CharacteristicDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Characteristic Info")) {
-                    Text("UUID: \(viewModel.characteristic.uuid.uuidString)")
-                }
-                if viewModel.characteristic.properties.contains(.read) {
-                    Section(header: Text("READ")) {
-                        Button("Read") {
-                            viewModel.readValue()
-                        }
-                        Text(viewModel.value)
+        Form {
+            Section(header: Text("Characteristic Info")) {
+                Text("UUID: \(viewModel.characteristic.uuid.uuidString)")
+            }
+            
+            if viewModel.characteristic.properties.contains(.read) {
+                Section(header: Text("READ")) {
+                    Button("Read") {
+                        viewModel.readValue()
                     }
+                    Text(viewModel.value)
                 }
-                if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
-                    Section(header: Text("WRITE")) {
-                        HStack {
-                            TextField("Enter value", text: $viewModel.writeValue)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                            Button("Write") {
-                                viewModel.writeCharacteristic()
-                            }
+            }
+            
+            if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
+                Section(header: Text("WRITE")) {
+                    HStack {
+                        TextField("Enter value", text: $viewModel.writeValue)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        Button("Write") {
+                            viewModel.writeCharacteristic()
                         }
-                        Text("Write Type: \(writeTypeString)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
+                    Text("Write Type: \(writeTypeString)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                if viewModel.characteristic.properties.contains(.notify) {
-                    Section(header: Text("NOTIFY")) {
-                        HStack {
-                            Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
-                                viewModel.toggleNotification()
-                            }
-                            Spacer()
-                            Button("Clear") {
-                                viewModel.clearValueHistory()
-                            }
+            }
+            
+            if viewModel.characteristic.properties.contains(.notify) {
+                Section(header: Text("NOTIFY")) {
+                    HStack {
+                        Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
+                            viewModel.toggleNotification()
                         }
-                        ForEach(viewModel.valueHistory, id: \.0) { timestamp, value in
-                            HStack(alignment: .bottom) {
-                                Text(value)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                    .truncationMode(.tail)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                Text(formatDate(timestamp))
-                                    .font(.caption2)
-                                    .foregroundColor(Color.gray.opacity(0.7))
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 10)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
+                        Spacer()
+                        Button("Clear") {
+                            viewModel.clearValueHistory()
                         }
+                    }
+                    ForEach(viewModel.valueHistory, id: \.0) { timestamp, value in
+                        HStack(alignment: .bottom) {
+                            Text(value)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            Text(formatDate(timestamp))
+                                .font(.caption2)
+                                .foregroundColor(Color.gray.opacity(0.7))
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
                     }
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button(action: {
-                presentationMode.wrappedValue.dismiss()
-            }) {
-                Text("Done")
-            })
         }
+        .navigationBarTitle("Characteristic Detail", displayMode: .inline)
+        .navigationBarItems(trailing: Button("Done") {
+            presentationMode.wrappedValue.dismiss()
+        })
     }
     
     private var writeTypeString: String {
