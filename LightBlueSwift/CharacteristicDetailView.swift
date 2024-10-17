@@ -10,10 +10,12 @@ import CoreBluetooth
 
 class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
     @Published var value: String = "N/A"
+    @Published var isNotifying: Bool
     let characteristic: CBCharacteristic
     
     init(characteristic: CBCharacteristic) {
         self.characteristic = characteristic
+        self.isNotifying = characteristic.isNotifying
         super.init()
         characteristic.service?.peripheral?.delegate = self
     }
@@ -23,12 +25,25 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
     }
     
     func toggleNotification() {
-        characteristic.service?.peripheral?.setNotifyValue(!characteristic.isNotifying, for: characteristic)
+        let newValue = !isNotifying
+        characteristic.service?.peripheral?.setNotifyValue(newValue, for: characteristic)
+        // 立即更新 isNotifying 状态
+        DispatchQueue.main.async {
+            self.isNotifying = newValue
+        }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let value = characteristic.value {
-            self.value = String(data: value, encoding: .utf8) ?? "Unable to decode"
+            DispatchQueue.main.async {
+                self.value = String(data: value, encoding: .utf8) ?? "Unable to decode"
+            }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        DispatchQueue.main.async {
+            self.isNotifying = characteristic.isNotifying
         }
     }
 }
@@ -62,7 +77,7 @@ struct CharacteristicDetailView: View {
                         }
                     }
                     if viewModel.characteristic.properties.contains(.notify) {
-                        Button(viewModel.characteristic.isNotifying ? "Unsubscribe" : "Subscribe") {
+                        Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
                             viewModel.toggleNotification()
                         }
                     }
