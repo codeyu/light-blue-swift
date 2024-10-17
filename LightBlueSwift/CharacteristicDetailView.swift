@@ -13,6 +13,7 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
     @Published var isNotifying: Bool
     @Published var valueHistory: [(Date, String)] = []
     let characteristic: CBCharacteristic
+    private let maxHistoryCount = 10
     
     init(characteristic: CBCharacteristic) {
         self.characteristic = characteristic
@@ -39,9 +40,16 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
             let newValue = String(data: value, encoding: .utf8) ?? "Unable to decode"
             DispatchQueue.main.async {
                 self.value = newValue
-                self.valueHistory.append((Date(), newValue))
+                self.valueHistory.insert((Date(), newValue), at: 0)
+                if self.valueHistory.count > self.maxHistoryCount {
+                    self.valueHistory.removeLast()
+                }
             }
         }
+    }
+    
+    func clearValueHistory() {
+        self.valueHistory.removeAll()
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
@@ -79,16 +87,34 @@ struct CharacteristicDetailView: View {
                             // Implement write functionality
                         }
                     }
-                    
                 }
                 if viewModel.characteristic.properties.contains(.notify) {
                     Section(header: Text("NOTIFY")) {
-                        Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
-                            viewModel.toggleNotification()
+                        HStack {
+                            Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
+                                viewModel.toggleNotification()
+                            }
+                            Spacer()
+                            Button("Clear") {
+                                viewModel.clearValueHistory()
+                            }
                         }
                         ForEach(viewModel.valueHistory, id: \.0) { timestamp, value in
-                            Text("\(formatDate(timestamp)): \(value)")
-                                .font(.footnote)
+                            HStack(alignment: .bottom) {
+                                Text(value)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                    .truncationMode(.tail)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                Text(formatDate(timestamp))
+                                    .font(.caption2)
+                                    .foregroundColor(Color.gray.opacity(0.7))
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 10)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                     }
                 }
@@ -106,14 +132,5 @@ struct CharacteristicDetailView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         return formatter.string(from: date)
-    }
-    
-    private var characteristicProperties: String {
-        var properties: [String] = []
-        if viewModel.characteristic.properties.contains(.read) { properties.append("Read") }
-        if viewModel.characteristic.properties.contains(.write) { properties.append("Write") }
-        if viewModel.characteristic.properties.contains(.writeWithoutResponse) { properties.append("Write Without Response") }
-        if viewModel.characteristic.properties.contains(.notify) { properties.append("Notify") }
-        return properties.joined(separator: ", ")
     }
 }
