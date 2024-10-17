@@ -43,14 +43,14 @@ struct PeripheralRowView: View {
     var rssiIcon: String {
         let rssiValue = rssi.intValue
         switch rssiValue {
-        case -30...0:
-            return "cellularbars.4"
-        case -60...(-31):
-            return "cellularbars.3"
-        case -90...(-61):
-            return "cellularbars.2"
-        case Int.min...(-91):
-            return "cellularbars.1"
+        case -50...0:
+            return "cellularbars"
+        case -65...(-51):
+            return "cellularbars"
+        case -80...(-66):
+            return "cellularbars"
+        case Int.min...(-81):
+            return "cellularbars"
         default:
             return "cellularbars.slash"
         }

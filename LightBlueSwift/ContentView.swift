@@ -13,8 +13,8 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var hideUnknownDevices = false
     @State private var selectedPeripheral: CBPeripheral?
-    @State private var showingDetailView = false
     @State private var isConnecting = false
+    @State private var isNavigatingToDetail = false
     
     var body: some View {
         NavigationView {
@@ -30,9 +30,14 @@ struct ContentView: View {
                             selectedPeripheral = peripheral
                             isConnecting = true
                             bluetoothManager.connect(to: peripheral) { success in
-                                isConnecting = false
-                                if success {
-                                    showingDetailView = true
+                                DispatchQueue.main.async {
+                                    isConnecting = false
+                                    if success {
+                                        print("Connection successful, navigating to detail view")
+                                        isNavigatingToDetail = true
+                                    } else {
+                                        print("Connection failed")
+                                    }
                                 }
                             }
                         }
@@ -60,14 +65,22 @@ struct ContentView: View {
                     }
                 }
             }
+            .background(
+                NavigationLink(destination: Group {
+                    if let peripheral = selectedPeripheral {
+                        PeripheralDetailView(
+                            peripheral: peripheral,
+                            bluetoothManager: bluetoothManager,
+                            isPresented: $isNavigatingToDetail
+                        )
+                    }
+                }, isActive: $isNavigatingToDetail) {
+                    EmptyView()
+                }
+            )
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .accentColor(.white)
-        .sheet(isPresented: $showingDetailView) {
-            if let peripheral = selectedPeripheral {
-                PeripheralDetailView(peripheral: peripheral, bluetoothManager: bluetoothManager, isPresented: $showingDetailView)
-            }
-        }
         .alert(isPresented: $isConnecting) {
             Alert(
                 title: Text("Connecting"),

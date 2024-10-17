@@ -43,35 +43,34 @@ struct PeripheralDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
-            List {
-                Section(header: Text("Device Info")) {
-                    Text("Name: \(viewModel.peripheral.name ?? "Unknown")")
-                    Text("UUID: \(viewModel.peripheral.identifier.uuidString)")
-                }
-                
-                Section(header: Text("Services")) {
-                    ForEach(viewModel.services, id: \.uuid) { service in
-                        NavigationLink(destination: ServiceDetailView(service: service)) {
-                            Text(service.uuid.uuidString)
-                        }
+        List {
+            Section(header: Text("Device Info")) {
+                Text("Name: \(viewModel.peripheral.name ?? "Unknown")")
+                Text("UUID: \(viewModel.peripheral.identifier.uuidString)")
+            }
+            
+            Section(header: Text("Services")) {
+                ForEach(viewModel.services, id: \.uuid) { service in
+                    NavigationLink(destination: ServiceDetailView(service: service)) {
+                        Text(service.uuid.uuidString)
                     }
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .navigationBarItems(leading: Button(action: {
-                bluetoothManager.disconnect(viewModel.peripheral)
-                isPresented = false
-            }) {
-                HStack {
-                    Image(systemName: "chevron.left")
-                    Text("Back")
-                }
-            })
-            .onAppear {
-                viewModel.discoverServices()
+        }
+        .navigationTitle("Device Details")
+        .navigationBarBackButtonHidden(true)
+        .navigationBarItems(leading: Button(action: {
+            bluetoothManager.disconnect(viewModel.peripheral)
+            isPresented = false
+        }) {
+            HStack {
+                Image(systemName: "chevron.left")
+                Text("Back")
             }
+        })
+        .onAppear {
+            print("PeripheralDetailView appeared")
+            viewModel.discoverServices()
         }
     }
 }
