@@ -11,6 +11,7 @@ import CoreBluetooth
 class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
     @Published var value: String = "N/A"
     @Published var isNotifying: Bool
+    @Published var valueHistory: [(Date, String)] = []
     let characteristic: CBCharacteristic
     
     init(characteristic: CBCharacteristic) {
@@ -35,8 +36,10 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let value = characteristic.value {
+            let newValue = String(data: value, encoding: .utf8) ?? "Unable to decode"
             DispatchQueue.main.async {
-                self.value = String(data: value, encoding: .utf8) ?? "Unable to decode"
+                self.value = newValue
+                self.valueHistory.append((Date(), newValue))
             }
         }
     }
@@ -61,24 +64,31 @@ struct CharacteristicDetailView: View {
             Form {
                 Section(header: Text("Characteristic Info")) {
                     Text("UUID: \(viewModel.characteristic.uuid.uuidString)")
-                    Text("Properties: \(characteristicProperties)")
                 }
-                
-                Section(header: Text("Value")) {
-                    Text(viewModel.value)
-                    if viewModel.characteristic.properties.contains(.read) {
-                        Button("Read Value") {
+                if viewModel.characteristic.properties.contains(.read) {
+                    Section(header: Text("READ")) {
+                        Button("Read") {
                             viewModel.readValue()
                         }
+                        Text(viewModel.value)
                     }
-                    if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
-                        Button("Write Value") {
+                }
+                if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
+                    Section(header: Text("WRITE")) {
+                        Button("Write") {
                             // Implement write functionality
                         }
                     }
-                    if viewModel.characteristic.properties.contains(.notify) {
+                    
+                }
+                if viewModel.characteristic.properties.contains(.notify) {
+                    Section(header: Text("NOTIFY")) {
                         Button(viewModel.isNotifying ? "Unsubscribe" : "Subscribe") {
                             viewModel.toggleNotification()
+                        }
+                        ForEach(viewModel.valueHistory, id: \.0) { timestamp, value in
+                            Text("\(formatDate(timestamp)): \(value)")
+                                .font(.footnote)
                         }
                     }
                 }
@@ -90,6 +100,12 @@ struct CharacteristicDetailView: View {
                 Text("Done")
             })
         }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: date)
     }
     
     private var characteristicProperties: String {

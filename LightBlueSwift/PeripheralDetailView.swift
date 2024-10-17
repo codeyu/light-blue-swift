@@ -84,7 +84,7 @@ struct PeripheralDetailView: View {
                             }
                         },
                         label: {
-                            Text("View Advertisement Data")
+                            Text("Advertisement Data")
                         }
                     )
                 }
