@@ -11,6 +11,7 @@ import CoreBluetooth
 class PeripheralViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
     @Published var services: [CBService] = []
     @Published var advertisementData: [String: Any] = [:]
+    @Published var characteristics: [CBUUID: [CBCharacteristic]] = [:]
     let peripheral: CBPeripheral
     
     init(peripheral: CBPeripheral, advertisementData: [String: Any]) {
@@ -28,6 +29,17 @@ class PeripheralViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
         if let services = peripheral.services {
             DispatchQueue.main.async {
                 self.services = services
+                for service in services {
+                    peripheral.discoverCharacteristics(nil, for: service)
+                }
+            }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        DispatchQueue.main.async {
+            if let characteristics = service.characteristics {
+                self.characteristics[service.uuid] = characteristics
             }
         }
     }
@@ -37,6 +49,11 @@ struct PeripheralDetailView: View {
     @StateObject private var viewModel: PeripheralViewModel
     @ObservedObject var bluetoothManager: BluetoothManager
     let dismiss: () -> Void
+    
+    @State private var isAdvertisementDataExpanded = false
+    @State private var expandedServices: Set<CBUUID> = []
+    @State private var selectedCharacteristic: CBCharacteristic?
+    @State private var isCharacteristicDetailPresented = false
     
     init(peripheral: CBPeripheral, bluetoothManager: BluetoothManager, dismiss: @escaping () -> Void) {
         _viewModel = StateObject(wrappedValue: PeripheralViewModel(peripheral: peripheral, advertisementData: bluetoothManager.advertisementData[peripheral.identifier] ?? [:]))
@@ -52,17 +69,59 @@ struct PeripheralDetailView: View {
                     Text("UUID: \(viewModel.peripheral.identifier.uuidString)")
                 }
                 
-                Section(header: Text("Advertisement Data")) {
-                    NavigationLink(destination: AdvertisementDataView(advertisementData: viewModel.advertisementData)) {
-                        Text("View Advertisement Data")
-                    }
+                Section {
+                    DisclosureGroup(
+                        isExpanded: $isAdvertisementDataExpanded,
+                        content: {
+                            ForEach(Array(viewModel.advertisementData.keys), id: \.self) { key in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(key)
+                                        .font(.headline)
+                                    Text("\(String(describing: viewModel.advertisementData[key]!))")
+                                        .font(.subheadline)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        },
+                        label: {
+                            Text("View Advertisement Data")
+                        }
+                    )
                 }
                 
                 Section(header: Text("Services")) {
                     ForEach(viewModel.services, id: \.uuid) { service in
-                        NavigationLink(destination: ServiceDetailView(service: service)) {
-                            Text(service.uuid.uuidString)
-                        }
+                        DisclosureGroup(
+                            isExpanded: Binding(
+                                get: { expandedServices.contains(service.uuid) },
+                                set: { newValue in
+                                    if newValue {
+                                        expandedServices.insert(service.uuid)
+                                    } else {
+                                        expandedServices.remove(service.uuid)
+                                    }
+                                }
+                            ),
+                            content: {
+                                ForEach(viewModel.characteristics[service.uuid] ?? [], id: \.uuid) { characteristic in
+                                    Button(action: {
+                                        selectedCharacteristic = characteristic
+                                        isCharacteristicDetailPresented = true
+                                    }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(characteristic.uuid.uuidString)
+                                                .font(.headline)
+                                            Text("Properties: \(characteristicPropertiesString(characteristic))")
+                                                .font(.subheadline)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            },
+                            label: {
+                                Text(service.uuid.uuidString)
+                            }
+                        )
                     }
                 }
             }
@@ -87,26 +146,22 @@ struct PeripheralDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $isCharacteristicDetailPresented) {
+            if let characteristic = selectedCharacteristic {
+                CharacteristicDetailView(characteristic: characteristic)
+            }
+        }
         .onAppear {
             viewModel.discoverServices()
         }
     }
-}
-
-struct AdvertisementDataView: View {
-    let advertisementData: [String: Any]
     
-    var body: some View {
-        List {
-            ForEach(Array(advertisementData.keys), id: \.self) { key in
-                VStack(alignment: .leading) {
-                    Text(key)
-                        .font(.headline)
-                    Text("\(String(describing: advertisementData[key]!))")
-                        .font(.subheadline)
-                }
-            }
-        }
-        .navigationTitle("Advertisement Data")
+    func characteristicPropertiesString(_ characteristic: CBCharacteristic) -> String {
+        var properties: [String] = []
+        if characteristic.properties.contains(.read) { properties.append("Read") }
+        if characteristic.properties.contains(.write) { properties.append("Write") }
+        if characteristic.properties.contains(.notify) { properties.append("Notify") }
+        if characteristic.properties.contains(.indicate) { properties.append("Indicate") }
+        return properties.joined(separator: ", ")
     }
 }

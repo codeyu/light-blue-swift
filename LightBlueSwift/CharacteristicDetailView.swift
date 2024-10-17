@@ -35,48 +35,46 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
 
 struct CharacteristicDetailView: View {
     @StateObject private var viewModel: CharacteristicViewModel
+    @Environment(\.presentationMode) var presentationMode
     
     init(characteristic: CBCharacteristic) {
         _viewModel = StateObject(wrappedValue: CharacteristicViewModel(characteristic: characteristic))
     }
     
     var body: some View {
-        Form {
-            Section(header: Text("Characteristic Info")) {
-                Text("UUID: \(viewModel.characteristic.uuid.uuidString)")
-                Text("Properties: \(characteristicProperties)")
+        NavigationView {
+            Form {
+                Section(header: Text("Characteristic Info")) {
+                    Text("UUID: \(viewModel.characteristic.uuid.uuidString)")
+                    Text("Properties: \(characteristicProperties)")
+                }
+                
+                Section(header: Text("Value")) {
+                    Text(viewModel.value)
+                    if viewModel.characteristic.properties.contains(.read) {
+                        Button("Read Value") {
+                            viewModel.readValue()
+                        }
+                    }
+                    if viewModel.characteristic.properties.contains(.write) {
+                        Button("Write Value") {
+                            // Implement write functionality
+                        }
+                    }
+                    if viewModel.characteristic.properties.contains(.notify) {
+                        Button(viewModel.characteristic.isNotifying ? "Unsubscribe" : "Subscribe") {
+                            viewModel.toggleNotification()
+                        }
+                    }
+                }
             }
-            
-            Section(header: Text("Value")) {
-                Text(viewModel.value)
-                if viewModel.characteristic.properties.contains(.read) {
-                    Button("Read Value") {
-                        viewModel.readValue()
-                    }
-                }
-                if viewModel.characteristic.properties.contains(.write) {
-                    Button("Write Value") {
-                        // Implement write functionality
-                    }
-                }
-                if viewModel.characteristic.properties.contains(.notify) {
-                    Button(viewModel.characteristic.isNotifying ? "Unsubscribe" : "Subscribe") {
-                        viewModel.toggleNotification()
-                    }
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(leading: Button(action: {
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                Text("Done")
+            })
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .navigationBarItems(leading: Button(action: {
-            // Here we use the default back action
-            // If you need custom behavior, you can implement it here
-        }) {
-            HStack {
-                Image(systemName: "chevron.left")
-                Text("Back")
-            }
-        })
     }
     
     private var characteristicProperties: String {
