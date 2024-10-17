@@ -24,36 +24,54 @@ class PeripheralViewModel: NSObject, ObservableObject, CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let services = peripheral.services {
-            self.services = services
+            DispatchQueue.main.async {
+                self.services = services
+            }
         }
     }
 }
 
 struct PeripheralDetailView: View {
     @StateObject private var viewModel: PeripheralViewModel
+    @ObservedObject var bluetoothManager: BluetoothManager
+    @Binding var isPresented: Bool
     
-    init(peripheral: CBPeripheral) {
+    init(peripheral: CBPeripheral, bluetoothManager: BluetoothManager, isPresented: Binding<Bool>) {
         _viewModel = StateObject(wrappedValue: PeripheralViewModel(peripheral: peripheral))
+        self.bluetoothManager = bluetoothManager
+        self._isPresented = isPresented
     }
     
     var body: some View {
-        List {
-            Section(header: Text("Device Info")) {
-                Text("Name: \(viewModel.peripheral.name ?? "Unknown")")
-                Text("UUID: \(viewModel.peripheral.identifier.uuidString)")
-            }
-            
-            Section(header: Text("Services")) {
-                ForEach(viewModel.services, id: \.uuid) { service in
-                    NavigationLink(destination: ServiceDetailView(service: service)) {
-                        Text(service.uuid.uuidString)
+        NavigationView {
+            List {
+                Section(header: Text("Device Info")) {
+                    Text("Name: \(viewModel.peripheral.name ?? "Unknown")")
+                    Text("UUID: \(viewModel.peripheral.identifier.uuidString)")
+                }
+                
+                Section(header: Text("Services")) {
+                    ForEach(viewModel.services, id: \.uuid) { service in
+                        NavigationLink(destination: ServiceDetailView(service: service)) {
+                            Text(service.uuid.uuidString)
+                        }
                     }
                 }
             }
-        }
-        .navigationTitle("Device Details")
-        .onAppear {
-            viewModel.discoverServices()
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .navigationBarItems(leading: Button(action: {
+                bluetoothManager.disconnect(viewModel.peripheral)
+                isPresented = false
+            }) {
+                HStack {
+                    Image(systemName: "chevron.left")
+                    Text("Back")
+                }
+            })
+            .onAppear {
+                viewModel.discoverServices()
+            }
         }
     }
 }

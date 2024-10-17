@@ -66,7 +66,17 @@ struct CharacteristicDetailView: View {
                 }
             }
         }
-        .navigationTitle("Characteristic Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .navigationBarItems(leading: Button(action: {
+            // Here we use the default back action
+            // If you need custom behavior, you can implement it here
+        }) {
+            HStack {
+                Image(systemName: "chevron.left")
+                Text("Back")
+            }
+        })
     }
     
     private var characteristicProperties: String {

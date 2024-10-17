@@ -8,10 +8,12 @@
 import CoreBluetooth
 
 class BluetoothManager: NSObject, ObservableObject {
-    @Published var discoveredPeripherals: [CBPeripheral] = []
+    @Published var discoveredPeripherals: [(peripheral: CBPeripheral, rssi: NSNumber)] = []
     @Published var connectedPeripheral: CBPeripheral?
     
     private var centralManager: CBCentralManager?
+    private var connectionTimer: Timer?
+    private var connectionCallback: ((Bool) -> Void)?
     
     override init() {
         super.init()
@@ -26,8 +28,25 @@ class BluetoothManager: NSObject, ObservableObject {
         centralManager?.stopScan()
     }
     
-    func connect(to peripheral: CBPeripheral) {
+    func connect(to peripheral: CBPeripheral, completion: @escaping (Bool) -> Void) {
+        connectionCallback = completion
         centralManager?.connect(peripheral, options: nil)
+        
+        // Set a timer for 10 seconds
+        connectionTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
+            self?.cancelConnection(peripheral)
+            self?.connectionCallback?(false)
+        }
+    }
+    
+    func cancelConnection(_ peripheral: CBPeripheral) {
+        centralManager?.cancelPeripheralConnection(peripheral)
+        connectionTimer?.invalidate()
+        connectionTimer = nil
+    }
+    
+    func disconnect(_ peripheral: CBPeripheral) {
+        centralManager?.cancelPeripheralConnection(peripheral)
     }
 }
 
@@ -39,13 +58,29 @@ extension BluetoothManager: CBCentralManagerDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        if !discoveredPeripherals.contains(peripheral) {
-            discoveredPeripherals.append(peripheral)
+        if !discoveredPeripherals.contains(where: { $0.peripheral.identifier == peripheral.identifier }) {
+            discoveredPeripherals.append((peripheral: peripheral, rssi: RSSI))
+            objectWillChange.send()
         }
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectedPeripheral = peripheral
+        connectionTimer?.invalidate()
+        connectionTimer = nil
+        connectionCallback?(true)
         stopScanning()
+    }
+    
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        connectionTimer?.invalidate()
+        connectionTimer = nil
+        connectionCallback?(false)
+    }
+    
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        if peripheral == connectedPeripheral {
+            connectedPeripheral = nil
+        }
     }
 }
