@@ -71,7 +71,7 @@ struct CharacteristicDetailView: View {
                             viewModel.readValue()
                         }
                     }
-                    if viewModel.characteristic.properties.contains(.write) {
+                    if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
                         Button("Write Value") {
                             // Implement write functionality
                         }
@@ -96,6 +96,7 @@ struct CharacteristicDetailView: View {
         var properties: [String] = []
         if viewModel.characteristic.properties.contains(.read) { properties.append("Read") }
         if viewModel.characteristic.properties.contains(.write) { properties.append("Write") }
+        if viewModel.characteristic.properties.contains(.writeWithoutResponse) { properties.append("Write Without Response") }
         if viewModel.characteristic.properties.contains(.notify) { properties.append("Notify") }
         return properties.joined(separator: ", ")
     }

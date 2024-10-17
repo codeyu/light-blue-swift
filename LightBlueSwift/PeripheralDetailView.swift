@@ -160,6 +160,7 @@ struct PeripheralDetailView: View {
         var properties: [String] = []
         if characteristic.properties.contains(.read) { properties.append("Read") }
         if characteristic.properties.contains(.write) { properties.append("Write") }
+        if characteristic.properties.contains(.writeWithoutResponse) { properties.append("Write Without Response") }
         if characteristic.properties.contains(.notify) { properties.append("Notify") }
         if characteristic.properties.contains(.indicate) { properties.append("Indicate") }
         return properties.joined(separator: ", ")
