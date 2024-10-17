@@ -12,6 +12,7 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
     @Published var value: String = "N/A"
     @Published var isNotifying: Bool
     @Published var valueHistory: [(Date, String)] = []
+    @Published var writeValue: String = ""
     let characteristic: CBCharacteristic
     private let maxHistoryCount = 10
     
@@ -57,6 +58,12 @@ class CharacteristicViewModel: NSObject, ObservableObject, CBPeripheralDelegate 
             self.isNotifying = characteristic.isNotifying
         }
     }
+    
+    func writeCharacteristic() {
+        guard let data = writeValue.data(using: .utf8) else { return }
+        let writeType: CBCharacteristicWriteType = characteristic.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        characteristic.service?.peripheral?.writeValue(data, for: characteristic, type: writeType)
+    }
 }
 
 struct CharacteristicDetailView: View {
@@ -83,9 +90,16 @@ struct CharacteristicDetailView: View {
                 }
                 if viewModel.characteristic.properties.contains(.write) || viewModel.characteristic.properties.contains(.writeWithoutResponse) {
                     Section(header: Text("WRITE")) {
-                        Button("Write") {
-                            // Implement write functionality
+                        HStack {
+                            TextField("Enter value", text: $viewModel.writeValue)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            Button("Write") {
+                                viewModel.writeCharacteristic()
+                            }
                         }
+                        Text("Write Type: \(writeTypeString)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 if viewModel.characteristic.properties.contains(.notify) {
@@ -125,6 +139,18 @@ struct CharacteristicDetailView: View {
             }) {
                 Text("Done")
             })
+        }
+    }
+    
+    private var writeTypeString: String {
+        if viewModel.characteristic.properties.contains(.write) && viewModel.characteristic.properties.contains(.writeWithoutResponse) {
+            return "With or Without Response"
+        } else if viewModel.characteristic.properties.contains(.write) {
+            return "With Response"
+        } else if viewModel.characteristic.properties.contains(.writeWithoutResponse) {
+            return "Without Response"
+        } else {
+            return "Not Writable"
         }
     }
     
