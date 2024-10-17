@@ -14,7 +14,7 @@ struct ContentView: View {
     @State private var hideUnknownDevices = false
     @State private var selectedPeripheral: CBPeripheral?
     @State private var isConnecting = false
-    @State private var isNavigatingToDetail = false
+    @State private var showingDetailView = false
     
     var body: some View {
         NavigationView {
@@ -27,19 +27,7 @@ struct ContentView: View {
                 List {
                     ForEach(filteredPeripherals, id: \.peripheral.identifier) { (peripheral, rssi) in
                         PeripheralRowView(peripheral: peripheral, rssi: rssi) {
-                            selectedPeripheral = peripheral
-                            isConnecting = true
-                            bluetoothManager.connect(to: peripheral) { success in
-                                DispatchQueue.main.async {
-                                    isConnecting = false
-                                    if success {
-                                        print("Connection successful, navigating to detail view")
-                                        isNavigatingToDetail = true
-                                    } else {
-                                        print("Connection failed")
-                                    }
-                                }
-                            }
+                            connectToPeripheral(peripheral)
                         }
                     }
                 }
@@ -65,22 +53,14 @@ struct ContentView: View {
                     }
                 }
             }
-            .background(
-                NavigationLink(destination: Group {
-                    if let peripheral = selectedPeripheral {
-                        PeripheralDetailView(
-                            peripheral: peripheral,
-                            bluetoothManager: bluetoothManager,
-                            isPresented: $isNavigatingToDetail
-                        )
-                    }
-                }, isActive: $isNavigatingToDetail) {
-                    EmptyView()
-                }
-            )
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .accentColor(.white)
+        .sheet(isPresented: $showingDetailView) {
+            if let peripheral = selectedPeripheral {
+                PeripheralDetailView(peripheral: peripheral, bluetoothManager: bluetoothManager, isPresented: $showingDetailView)
+            }
+        }
         .alert(isPresented: $isConnecting) {
             Alert(
                 title: Text("Connecting"),
@@ -91,6 +71,19 @@ struct ContentView: View {
                     }
                 }
             )
+        }
+    }
+    
+    private func connectToPeripheral(_ peripheral: CBPeripheral) {
+        selectedPeripheral = peripheral
+        isConnecting = true
+        bluetoothManager.connect(to: peripheral) { success in
+            DispatchQueue.main.async {
+                isConnecting = false
+                if success {
+                    showingDetailView = true
+                }
+            }
         }
     }
     

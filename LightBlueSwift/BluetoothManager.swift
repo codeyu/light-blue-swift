@@ -10,6 +10,7 @@ import CoreBluetooth
 class BluetoothManager: NSObject, ObservableObject {
     @Published var discoveredPeripherals: [(peripheral: CBPeripheral, rssi: NSNumber)] = []
     @Published var connectedPeripheral: CBPeripheral?
+    var advertisementData: [UUID: [String: Any]] = [:]
     
     private var centralManager: CBCentralManager?
     private var connectionTimer: Timer?
@@ -60,6 +61,7 @@ extension BluetoothManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         if !discoveredPeripherals.contains(where: { $0.peripheral.identifier == peripheral.identifier }) {
             discoveredPeripherals.append((peripheral: peripheral, rssi: RSSI))
+            self.advertisementData[peripheral.identifier] = advertisementData
             objectWillChange.send()
         }
     }
