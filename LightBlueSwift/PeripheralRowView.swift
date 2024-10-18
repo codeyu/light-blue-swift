@@ -16,13 +16,13 @@ struct PeripheralRowView: View {
     var body: some View {
         HStack(spacing: 10) {
             // RSSI column
-            VStack(alignment: .center) {
-                Image(systemName: rssiIcon)
-                    .font(.title2)
-                Text("\(rssi.intValue) dBm")
-                    .font(.caption2)
+            VStack {
+                BluetoothSignalIcon(rssi: Int(truncating: rssi))
+                    .frame(width: 30, height: 20)  // 固定大小
+                Text("\(Int(truncating: rssi)) dBm")
+                    .font(.caption)
             }
-            .frame(width: 60)
+            .frame(width: 80)  // 增加宽度
             
             // Name column
             Text(peripheral.name ?? "Unknown Device")
@@ -35,24 +35,34 @@ struct PeripheralRowView: View {
             Button("Connect") {
                 connectAction()
             }
-            .buttonStyle(BorderedButtonStyle())
-            .frame(width: 100)  // Increased width
+            .buttonStyle(BorderedProminentButtonStyle())  // 使用更突出的样式
+            .tint(.blue)  // 设置按钮的色调
+            .frame(width: 100)  // 保持宽度
+        }
+    }
+}
+
+struct BluetoothSignalIcon: View {
+    let rssi: Int
+    
+    private var signalStrength: Int {
+        switch rssi {
+        case -50...(-30): return 4  // Very strong
+        case -70...(-51): return 3  // Good
+        case -90...(-71): return 2  // Weak
+        case ...(-91):    return 1  // Very weak
+        default:          return 0  // No signal or invalid
         }
     }
     
-    var rssiIcon: String {
-        let rssiValue = rssi.intValue
-        switch rssiValue {
-        case -50...0:
-            return "cellularbars"
-        case -65...(-51):
-            return "cellularbars"
-        case -80...(-66):
-            return "cellularbars"
-        case Int.min...(-81):
-            return "cellularbars"
-        default:
-            return "cellularbars.slash"
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 1) {
+            ForEach(0..<4) { index in
+                Rectangle()
+                    .fill(index < self.signalStrength ? Color.blue : Color.gray.opacity(0.3))
+                    .frame(width: 3, height: 4 + CGFloat(index) * 4)
+            }
         }
+        .frame(height: 20)  // Set a fixed height for the icon
     }
 }
